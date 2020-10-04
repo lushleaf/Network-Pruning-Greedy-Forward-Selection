@@ -4,7 +4,7 @@ Whether good subnetworks provably exist? How to find them efficiently? If networ
 
 We answer these problems positively by proposing a simple greedy selection approach for finding good subnetworks, which starts from an empty network and greedily adds important neurons from the large network. This differs from the existing methods based on backward elimination, which remove redundant neurons from the large network.
 
-<img src="figs/plot_add_del.png" width=1000></img>
+<img src="fig/plot_add_del.png" width=1000></img>
 
 Theoretically, applying the greedy selection strategy on sufficiently large pre-trained networks guarantees to
 find small subnetworks with lower loss than networks directly trained with gradient descent. Our
