@@ -5,8 +5,10 @@ Whether good subnetworks provably exist? How to find them efficiently? If networ
 We answer these problems positively by proposing a simple greedy selection approach for finding good subnetworks, which starts from an empty network and greedily adds important neurons from the large network. This differs from the existing methods based on backward elimination, which remove redundant neurons from the large network.
 
 ### Related Publication
-Good Subnetworks Provably Exist: Pruning via Greedy Forward Selection (ICML 2020)
-Greedy Optimization Provably Wins the Lottery: Logarithmic Number of Winning Tickets is Enough (NeurIPS 2020)
+
+Mao Ye<sup> * </sup>, Lemeng Wu<sup> * </sup> and Qiang Liu. Greedy Optimization Provably Wins the Lottery: Logarithmic Number of Winning Tickets is Enough. *NeurIPS 2020*
+
+Mao Ye, Chengyue Gong<sup> * </sup>, Lizhen Nie<sup> * </sup>, Denny Zhou, Adam Klivans and Qiang Liu. [Good Subnetworks Provably Exists: Pruning via Greedy Forward Selection.](https://proceedings.icml.cc/static/paper_files/icml/2020/1781-Paper.pdf) *ICML 2020*
 
 <img src="fig/plot_add_del.png" width=800></img>
 
