@@ -127,7 +127,7 @@ def decide_candidate_set(m, prunable_neuron, num_evaluate=50):
     prunable_neuron = set(np.where(prunable_neuron.astype(float) > 0)[0])
     tem_a = list(tem_a & prunable_neuron)
     
-    candidate_plus = tem_a[:num_evaluate_large]
+    candidate_plus = tem_a[:num_evaluate]
 
     return candidate_plus
 
@@ -412,7 +412,7 @@ def eval_train(net, train_loader):
 
             outputs = net(inputs)
 
-            loss = global_imit_loss(outputs, targets)
+            loss = criterion(outputs, targets)
 
             # measure accuracy and record loss
             prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))

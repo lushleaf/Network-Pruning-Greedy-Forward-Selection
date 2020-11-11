@@ -15,7 +15,7 @@ from lib.utils import accuracy, AverageMeter
 from lib.data import get_dataset_ft
 from lib.net_measure import measure_model
 
-from models.mobilenet_v3 import MobileNetV3_mask, eps, Mask, mb3_prune_ratio
+from models.mobilenet_v2 import MobileNetV2_prescreen, eps, Mask, mb2_prune_ratio
 
 from torch.autograd import Variable
 
@@ -28,7 +28,7 @@ import copy
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='finetune for mbv3')
+    parser = argparse.ArgumentParser(description='finetune for mbv2')
 
     # model and data
     parser.add_argument('--model', default='mobilenet', type=str, help='name of the model to train')
@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument('--epochs', default=150, type=int, metavar='N',
                     help='number of total epochs to run')
     parser.add_argument('--batch_size', default=256, type=int, help='batch size')  # default 128
-    parser.add_argument('--lr_type', default='cos', type=str, help='lr scheduler (exp/cos/step3/fixed)')
+    parser.add_argument('--lr_type', default='cos', type=str, help='lr scheduler (exp/cos/step/fixed)')
     parser.add_argument('--wd', default=4e-5, type=float, help='weight decay')
     parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
     parser.add_argument('--n_gpu', default=2, type=int, help='number of GPUs to use')
@@ -82,7 +82,7 @@ def get_model(path, n_class):
     layer = -1
     from models.mobilenet_v2 import MobileNetV2
     fullnet = MobileNetV2(num_classes=1000)
-    net = MobileNetV3_prescreen(fullnet)
+    net = MobileNetV2_prescreen(fullnet)
     checkpoint = torch.load(args.load_path, map_location='cpu')
     
     from collections import OrderedDict
