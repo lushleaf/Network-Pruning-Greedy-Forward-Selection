@@ -19,7 +19,7 @@ import math
 
 from lib.utils import accuracy, AverageMeter, progress_bar, get_output_folder
 from lib.data import get_dataset
-from lib.net_measure import measure_model
+# from lib.net_measure import measure_model
 
 from models.mobilenet_v2 import MobileNetV2_prescreen, eps, Mask, mb2_prune_ratio
 
@@ -34,12 +34,12 @@ import copy
 # import setGPU
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Preprune for mbv2')
+    parser = argparse.ArgumentParser(description='prune for mbv2')
 
     # model and data
     parser.add_argument('--model', default='mobilenet', type=str, help='name of the model to train')
     parser.add_argument('--dataset', default='imagenet', type=str, help='name of the dataset to train')
-    parser.add_argument('--data_root', default=None, type=str, help='dataset path')
+    parser.add_argument('--data_root', default='dataroot', type=str, help='dataset path')
 
     # seed
     parser.add_argument('--seed', default=None, type=int, help='random seed to set')
@@ -56,20 +56,20 @@ def parse_args():
     parser.add_argument('--n_worker', default=8, type=int, help='number of data loader worker')
 
     # adding neuron
-    parser.add_argument('--num_evaluate', default=50, type=float,
+    parser.add_argument('--num_evaluate', default=50, type=int,
                         help='num of neuron to evaluate for every evaluation. (Randomly pickup num_evaluate number of neuron if there are more potential neuron that can be add)')
 
     # load and save
-    parser.add_argument('--load_path', default='./checkpoint', type=str,
+    parser.add_argument('--load_path', default='checkpoint', type=str,
                         help='pretrain model path to prune')
-    parser.add_argument('--save_path', default='./checkpoint', type=str, help='path the save the prunde model')
+    parser.add_argument('--save_path', default='save_path', type=str, help='path the save the prunde model')
 
     # skip for convergence criterion
-    parser.add_argument('--top1_tol', default=0.02, type=float, help='tol for loss')
+    parser.add_argument('--top1_tol', default=0.02, type=float, help='tol to stop pruning a layer. Larger tol means more neurons to prune')
     parser.add_argument('--skip_eval_converge', default=0.05, type=float,
-                        help='when bacth_top1 < (1 - skip_eval_convergence) * init_top, we skip eval the convergence')
-    parser.add_argument('--skip', default=200, type=int, help='#skip when eval trainset for convergence criterion')
-    parser.add_argument('--isfullnetpruned', default=0, type=int, help='whether to use pruned net as fullnet')
+                        help='when bacth_top1 < (1 - skip_eval_convergence) * init_top, we skip eval the convergence using the full training dataset')
+    parser.add_argument('--skip', default=200, type=int, help='skip when eval trainset for convergence criterion')
+    parser.add_argument('--isfullnetpruned', default=0, type=int, help='whether to use pruned net as fullnet. Set to 1 if we do iterative pruning (i.e. pruning a already pruned network)')
     
     # run eval
     parser.add_argument('--eval', action='store_true', help='Simply run eval')
@@ -115,13 +115,19 @@ def get_model(path, n_class):
 
     return net
 
-def decide_candidate_set(m, prunable_neuron, num_evaluate=50):
+def decide_candidate_set(m, prunable_neuron, num_evaluate=50, isfirst=False):
 
     # only randomly pickup num_evaluate number of neurons to form the candidate set
     candidate_plus = []
     
     tem_a = m.prune_a.data.squeeze().cpu().numpy()
-    tem_a = np.where(tem_a == 0)[0] # randomly pick up outside neuron to add
+
+    if isfirst:
+        eps_ = eps
+    else:
+        eps_ = 0.
+
+    tem_a = np.where(tem_a <= eps_)[0] # randomly pick up outside neuron to add
     np.random.shuffle(tem_a)
     tem_a = set(tem_a)
     prunable_neuron = set(np.where(prunable_neuron.astype(float) > 0)[0])
@@ -131,7 +137,7 @@ def decide_candidate_set(m, prunable_neuron, num_evaluate=50):
 
     return candidate_plus
 
-def decide_candidate(datas, targets, m, candidate_plus):
+def decide_candidate(datas, targets, m, candidate_plus, isfirst=False):
     # decide the candidate to perform update by 1/n stepsize
 
     datas = datas.to(device)
@@ -154,7 +160,14 @@ def decide_candidate(datas, targets, m, candidate_plus):
             opt_loss = loss
             opt_stepsize = 1. / (current_num_neuron + 1)
 
-    m.update_alpha(opt_index, opt_stepsize)
+    if isfirst:
+        m.prune_a *= 0.
+        m.prune_a[:, opt_index, :, :] += 1.
+        m.prune_w.data = 0. * m.prune_w.data
+        m.prune_lsearch.data = 0. * m.prune_lsearch.data
+        m.prune_gamma.data = 0. * m.prune_gamma.data
+    else:
+        m.update_alpha(opt_index, opt_stepsize)
 
 
 def prune_a_layer(m):
@@ -186,8 +199,10 @@ def prune_a_layer(m):
             data_labels = data_labels.to(device)
             targets = data_labels
 
-        candidate_plus = decide_candidate_set(m, prunable_neuron, num_evaluate=args.num_evaluate)
-        decide_candidate(datas, targets, m, candidate_plus)
+        candidate_plus = decide_candidate_set(m, prunable_neuron, num_evaluate=args.num_evaluate, isfirst=is_first_neuron)        
+        decide_candidate(datas, targets, m, candidate_plus, is_first_neuron)
+        if is_first_neuron:
+            is_first_neuron = 0
         outputs = net(datas)
         batch_top1, batch_top5 = accuracy(outputs.data, data_labels.data, topk=(1, 5))
         
@@ -228,7 +243,7 @@ def prune_a_layer(m):
     
     return a_para, a_num, cur_top1, isalladd
 
-def net_prune(layer_):
+def net_prune():
     net.eval()
 
     # add important tuning parameter to save
@@ -501,4 +516,4 @@ if __name__ == '__main__':
     else:  # train
         print('=> Start pruning...')
         print('Pruning {} on {}...'.format(args.model, args.dataset))
-        net_prune(layer)
+        net_prune()
